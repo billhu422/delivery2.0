@@ -63,15 +63,26 @@ app.use(async(ctx, next) => {
             var access_token = ctx.request.get('Authorization').split(" ")[1];
             var url = config.oauth.account_server + '/user';
             let user = await asyncOauthGet(url, access_token);
-            //console.log(user);
-            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, '{"code" : -2, "description" : "User\'s role is not seller(admin)"}');
+            console.log(user);
+            if(JSON.parse(user).email != config.oauth.username) //ctx.throw(400, '{"code" : -5, "description" : "User\'s role is not seller(admin)"}');
+            {
+		ctx.status = 400;
+                ctx.body = '{"code" : -5, "description" : "User\'s role is not seller(admin)"}';
+                console.log(ctx.body);
+		return;
+            }
+            console.log(111);
             await next();
         }
         catch (ex){
             //console.log(222);
-            console.log(ex.message);
+            console.log(JSON.stringify(ex));
+	    console.log(ex.statusCode);
+	    console.log(ex.status);
             ctx.status = parseInt(ex.statusCode,10);
+            console.log(ctx.status);
             ctx.body = ex.data;
+	    return;
         }
 });
 
