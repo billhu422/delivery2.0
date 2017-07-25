@@ -46,8 +46,10 @@ asyncOauthGet= async(url,accessToken)=>{
     let oauthGet = await new Promise(function(resolve,reject){
         oauth_client.get(url, accessToken,function(e,response){
             if (e) {
-               //console.log(e);
-                reject(e);
+               console.log(e);
+                e.status = e.statusCode;
+                e.message = e.data;
+               reject(e);
             }else{
                 //console.log(response.toString());
                 resolve(response.toString());
@@ -63,15 +65,25 @@ app.use(async(ctx, next) => {
             var access_token = ctx.request.get('Authorization').split(" ")[1];
             var url = config.oauth.account_server + '/user';
             let user = await asyncOauthGet(url, access_token);
-            //console.log(user);
-            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, '{"code" : -2, "description" : "User\'s role is not seller(admin)"}');
+            console.log(user);
+            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, '{"code" : -3, "description" : "User\'s role is not seller(admin)"}');
+
             await next();
         }
         catch (ex){
-            //console.log(222);
-            console.log(ex.message);
-            ctx.status = parseInt(ex.statusCode,10);
-            ctx.body = ex.data;
+            console.log(ex);
+            ctx.status = parseInt(ex.status,10);
+            switch (ctx.status) {
+                case 404:
+                    ctx.body = '{"code":-1, "description":"Access Token not found"}';
+                    break;
+                case 401:
+                    ctx.body = '{"code":-2, "description":"Invalid Access Token"}';
+                    break;
+                default: {
+                    ctx.body = ex.message;
+                }
+            }
         }
 });
 

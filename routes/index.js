@@ -76,12 +76,10 @@ asyncQcloudReq= async (params,opts,extra)=>{
 
 router.post('/bgpip',async (ctx, next) => {
     //1. Fetch order info
-
 try {
-
         console.log('Fetching order info');
         var orderId = ctx.request.body.orderId;
-        if(orderId  == undefined) ctx.throw(400, '{"code":-3,"description":"Need orderId."}');
+        if(orderId  == undefined) ctx.throw(400, '{"code":-4,"description":"Need orderId."}');
 
         var adminAccessToken = ctx.get('Authorization');
          var options = {
@@ -99,13 +97,13 @@ try {
         console.log(bd);
 
         var order = JSON.parse(bd)[0];
-        if(order == undefined) ctx.throw(400,'{"code"=-4,"description":"Not found order."}');
+        if(order == undefined) ctx.throw(400,'{"code"=-5,"description":"Not found order."}');
 
         console.log(JSON.stringify(order,4,4));
         //Validating Paid status
         console.log('Validating Paid status');
         var textObj = order.note.filter(function(x){return x.text=="Paid"})[0];
-        if( textObj ==undefined ) ctx.throw(400, '{"code":-3,"description":"The order is not paied, cannot  delivery an instance by the order"}');
+        if( textObj ==undefined ) ctx.throw(400, '{"code":-6,"description":"The order is not paied, cannot  delivery an instance by the order"}');
     }
     catch (ex){
         console.log(ex.message);
@@ -199,7 +197,6 @@ try {
         console.log(ex.message);
         ctx.status = parseInt(ex.status,10);
         ctx.body = ex.message;
-        return;
     }
 });
 

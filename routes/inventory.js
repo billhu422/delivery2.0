@@ -39,7 +39,6 @@ router.get('/v1/hybrid/instance',async(ctx, next)=>{
        console.log(ex.message);
        ctx.status = parseInt(ex.status,10);
        ctx.message = ex.message;
-       return;
    }
 });
 
