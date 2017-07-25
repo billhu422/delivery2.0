@@ -192,7 +192,7 @@ try {
         }
 
         ctx.status = 200;
-        ctx.body ='{"code":0,"instances":[{"bgpip-000000z1"}]}';
+        ctx.body ='{"code":0,"instances":[{"id":"bgpip-000000z1"}]}';
         console.log(ctx.body);
     }catch (ex){
         //item state change to Held
