@@ -166,6 +166,16 @@ try {
             var qcloudbd = await asyncQcloudReq(params,{serviceType: 'bgpip'});
             console.log(qcloudbd);
 
+            //write instance info into inventory database
+            var dboptions = {
+                       method: "POST",
+                       headers: {'content-type' : 'application/x-www-form-urlencoded'},
+                       url:     config.dbRest.baseUrl + '/inventory/instance',
+                       form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':'bgpip-000000z1','region':regionValue}
+                        }
+            var dbbody = await asyncRequest(dboptions);
+            console.log(JSON.stringify(dbbody,4,4));
+
             //update item state
             item.state = "Completed";
             console.log(JSON.stringify(item));
@@ -177,15 +187,7 @@ try {
                     }
             var itembody = await asyncRequest(itemOptions);
 
-            //write instance info into inventory database
-            var dboptions = {
-                       method: "POST",
-                       headers: {'content-type' : 'application/x-www-form-urlencoded'},
-                       url:     config.dbRest.baseUrl + '/inventory/instance',
-                       form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':'bgpip-000000z1','region':regionValue}
-                        }
-            var dbbody = await asyncRequest(dboptions);
-            console.log(JSON.stringify(dbbody,4,4));
+
 
         }
 
