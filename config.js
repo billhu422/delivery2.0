@@ -16,7 +16,7 @@ config.eco = {
 };
 
 config.dbRest = {
-    baseUrl : 'http://localhost:3003',
+    baseUrl : 'http://124.251.62.216:3003',
 };
 
 config.qcloud = {

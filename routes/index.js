@@ -115,6 +115,7 @@ try {
     //Handle OrderItem
     try {
         console.log('Fetching orderItem info');
+        var instanceIds = [];
         for(itemIndex in order.orderItem){
             var item = order.orderItem[itemIndex];
         //order.orderItem.forEach(function(item){ //await 只能直接写在async函数内，也就是说，不能写在forEach中。
@@ -167,14 +168,17 @@ try {
             console.log(qcloudbd);
 
             //write instance info into inventory database
+            var instanceId = 'bgpip-000000z1';
             var dboptions = {
                        method: "POST",
                        headers: {'content-type' : 'application/x-www-form-urlencoded'},
                        url:     config.dbRest.baseUrl + '/inventory/instance',
-                       form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':'bgpip-000000z1','region':regionValue}
+                       form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':instanceId,'region':regionValue}
                         }
             var dbbody = await asyncRequest(dboptions);
             console.log(JSON.stringify(dbbody,4,4));
+
+            instanceIds.push({"id": instanceId });
 
             //update item state
             item.state = "Completed";
@@ -186,13 +190,10 @@ try {
                     body:    '{ "orderItem":[' + JSON.stringify(item) + ']}'
                     }
             var itembody = await asyncRequest(itemOptions);
-
-
-
         }
 
         ctx.status = 200;
-        ctx.body ='{"code":0,"instances":[{"id":"bgpip-000000z1"}]}';
+        ctx.body ='{"code":0,"instances":'+ JSON.stringify(instanceIds) + '}';
         console.log(ctx.body);
     }catch (ex){
         //item state change to Held
