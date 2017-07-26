@@ -30,7 +30,6 @@ asyncQcloudReq= async (params,opts,extra)=>{
     let bd = await new Promise(function(resolve, reject) {
         capi.request(params,opts, function(err, data) {
             if (err) {
-
                 reject(err);
             } else {
                 resolve(data);
@@ -74,6 +73,7 @@ asyncQcloudReq= async (params,opts,extra)=>{
 );*/
 
 
+
 router.post('/bgpip',async (ctx, next) => {
     //1. Fetch order info
 try {
@@ -91,15 +91,17 @@ try {
                 }
         };
 
-        console.log("header:" + JSON.stringify(options,4,4));
-
+//        console.log("header:" + JSON.stringify(options,4,4));
+        var startOder = new Date();
         let bd  = await asyncRequest(options);
-        console.log(bd);
+//        console.log(bd);
+        var msOder = new Date() - startOder;
+        console.log(`fetchOrder - ${msOder}ms`)
 
         var order = JSON.parse(bd)[0];
         if(order == undefined) ctx.throw(400,'{"code"=-5,"description":"Not found order."}');
 
-        console.log(JSON.stringify(order,4,4));
+//        console.log(JSON.stringify(order,4,4));
         //Validating Paid status
         console.log('Validating Paid status');
         var textObj = order.note.filter(function(x){return x.text=="Paid"})[0];
@@ -141,6 +143,8 @@ try {
             var elasticValue = parseInt(elastic.split(' ')[0]);
             var region = item.product.productCharacteristic.filter(function(x){return x.name=="地域"})[0].value;
             var regionValue = config.qcloud.region.filter(function(x){return x.name==region})[0].value;
+            console.log("oderId" + orderId);
+            console.log("oderItemId" + item.id);
             console.log("userId" + userId);
             console.log("provider: " + provider);
 			console.log("productName: " + productName);
@@ -164,8 +168,12 @@ try {
             var params = assign({
         			Region: regionValue,
         			Action: 'BgpipCheckCreate'},params_in);
+
+            var startDelivery = new Date();
             var qcloudbd = await asyncQcloudReq(params,{serviceType: 'bgpip'});
-            console.log(qcloudbd);
+            //console.log(qcloudbd);
+            var msQcloud = new Date() - startDelivery;
+            console.log(`Delivery - ${msQcloud}ms`);
 
             //write instance info into inventory database
             var instanceId = 'bgpip-000000z1';
@@ -175,21 +183,29 @@ try {
                        url:     config.dbRest.baseUrl + '/inventory/instance',
                        form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':instanceId,'region':regionValue}
                         }
+
+            var startDb = new Date();
             var dbbody = await asyncRequest(dboptions);
-            console.log(JSON.stringify(dbbody,4,4));
+//            console.log(JSON.stringify(dbbody,4,4));
+            var msDB = new Date() - startDb;
+            console.log(`Write ins info - ${msDB}ms`);
 
             instanceIds.push({"id": instanceId });
 
             //update item state
             item.state = "Completed";
-            console.log(JSON.stringify(item));
+ //           console.log(JSON.stringify(item));
 			var itemOptions = {
 			        method: 'PATCH',
                     headers: {'content-type' : 'application/json','Authorization': adminAccessToken},
                     url: config.eco.baseUrl + config.eco.orderPath + "/" + orderId,
                     body:    '{ "orderItem":[' + JSON.stringify(item) + ']}'
                     }
+
+            var startPatch = new Date();
             var itembody = await asyncRequest(itemOptions);
+            var msPatch = new Date() - startPatch;
+            console.log(`Patch Order - ${msPatch}ms`);
         }
 
         ctx.status = 200;

@@ -64,8 +64,13 @@ app.use(async(ctx, next) => {
             console.log('Validating user authorization token' );
             var access_token = ctx.request.get('Authorization').split(" ")[1];
             var url = config.oauth.account_server + '/user';
+
+            var startOauth = new Date();
             let user = await asyncOauthGet(url, access_token);
-            console.log(user);
+            var msOauth = new Date() - startOauth;
+            console.log(`Validate AccessToken - ${msOauth}ms`)
+
+            //console.log(user);
             if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, '{"code" : -3, "description" : "User\'s role is not seller(admin)"}');
 
             await next();
