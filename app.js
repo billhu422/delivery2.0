@@ -59,7 +59,7 @@ asyncOauthGet= async(url,accessToken)=>{
     return oauthGet;
 }
 
-app.use(async(ctx, next) => {
+/*app.use(async(ctx, next) => {
     try{
             console.log('Validating user authorization token' );
             var access_token = ctx.request.get('Authorization').split(" ")[1];
@@ -70,9 +70,9 @@ app.use(async(ctx, next) => {
             var msOauth = new Date() - startOauth;
             console.log(`Validate AccessToken - ${msOauth}ms`)
 
-            //console.log(user);
+            console.log(user);
             if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, '{"code" : -3, "description" : "User\'s role is not seller(admin)"}');
-
+            console.log(111);
             await next();
         }
         catch (ex){
@@ -90,7 +90,7 @@ app.use(async(ctx, next) => {
                 }
             }
         }
-});
+});*/
 
 // routes
 app.use(index.routes(), index.allowedMethods())
