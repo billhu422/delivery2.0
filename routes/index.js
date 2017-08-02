@@ -73,11 +73,11 @@ asyncQcloudReq= async (params,opts,extra)=>{
 );*/
 
 
-/*router.use(async (ctx, next) => {
+router.use(async (ctx, next) => {
      try {
         console.log('Fetching order info');
         var orderId = ctx.request.body.orderId;
-        if(orderId  == undefined) ctx.throw(400, '{"code":-4,"description":"Need orderId."}');
+        if(orderId  == undefined) ctx.throw(400,{code:-4,description:'Need orderId.'});
 
         var adminAccessToken = ctx.get('Authorization');
          var options = {
@@ -97,13 +97,13 @@ asyncQcloudReq= async (params,opts,extra)=>{
         console.log(`fetchOrder - ${msOder}ms`)
 
         var order = JSON.parse(bd)[0];
-        if(order == undefined) ctx.throw(400,'{"code"=-5,"description":"Not found order."}');
+        if(order == undefined) ctx.throw(400,{code:-5,description:'Not found order.'});
 
 //        console.log(JSON.stringify(order,4,4));
         //Validating Paid status
         console.log('Validating Paid status');
         var textObj = order.note.filter(function(x){return x.text=="Paid"})[0];
-        if( textObj ==undefined ) ctx.throw(400, '{"code":-6,"description":"The order is not paied, cannot  delivery an instance by the order"}');
+        if( textObj ==undefined ) ctx.throw(400, {code:-6,description:'The order is not paied, cannot  delivery an instance by the order'});
 
         ctx.adminAccessToken = adminAccessToken;
         ctx.order = order;
@@ -116,7 +116,7 @@ asyncQcloudReq= async (params,opts,extra)=>{
         ctx.body = ex.message;
         return;
     }
-});*/
+});
 
 router.post('/bgpip',async (ctx, next) => {
     //Handle OrderItem
@@ -132,7 +132,7 @@ router.post('/bgpip',async (ctx, next) => {
         //order.orderItem.forEach(function(item){ //await 只能直接写在async函数内，也就是说，不能写在forEach中。
             //Check orderItem's state must be Acknowledged or InProgess
             console.log('Validate orderItem state');
-            if(item.state != 'Acknowledged' && item.state != "InProgess") ctx.throw(400,'{"code":-7,"description":"Only Acknowledged or InProgess can be manually modified"}');
+            if(item.state != 'Acknowledged' && item.state != "InProgress") ctx.throw(400,{code:-7,description:'Only Acknowledged or InProgess can be manually modified'});
 
             //fetch product characteristicValue
             var userId = item.product.relatedParty.filter(function(x){return x.role=="Customer"})[0].id;
@@ -220,7 +220,7 @@ router.post('/bgpip',async (ctx, next) => {
         }
 
         ctx.status = 200;
-        ctx.body ='{"code":0,"instances":'+ JSON.stringify(instanceIds) + '}';
+        ctx.body ={code:0,instances:instanceIds};
         console.log(ctx.body);
     }catch (ex){
         //item state change to Held
@@ -231,9 +231,98 @@ router.post('/bgpip',async (ctx, next) => {
     }
 });
 
+var checkRelatedPartyMandatory = function (ctx,charArray,charname) {
+        var len = charArray.filter(function(x){return x.role==charname}).length;
+        if(len == 0){
+            ctx.throw(400,{message:{code:-9,description:'Characteristic ' + charname + " is empty"}});
+        }else if(len > 1){
+            ctx.throw(400,{message:{code:-10,description:'Characteristic ' + charname + " is repeated"}});
+        }
+
+        return charArray.filter(function(x){return x.role==charname})[0].id;
+}
+
+
+var checkCharacteristicMandatory = function (ctx,charArray,charname) {
+        var len = charArray.filter(function(x){return x.name==charname}).length;
+        if(len == 0){
+            ctx.throw(400,{message:{code:-9,description:'Characteristic ' + charname + " is empty"}});
+        }else if(len > 1){
+            ctx.throw(400,{message:{code:-10,description:'Characteristic ' + charname + " is repeated"}});
+        }
+
+        return charArray.filter(function(x){return x.name==charname})[0].value;
+}
+
+var checkCharacteristicOptional =function (charArray,charname) {
+        var len = charArray.filter(function(x){return x.name==charname}).length;
+        if(len > 1){
+            ctx.throw(400,{message:{code:-10,description:'Characteristic ' + charname + " is repeated"}});
+        }else if(len == 0){
+            return undefined;
+        }else if(len == 1){
+            return charArray.filter(function(x){return x.name==charname})[0].value;
+        }
+}
+
 router.post('/cvm',async (ctx, next) => {
     //Handle OrderItem
- /*   try {
+    var RENEWFLAG = {
+        false :'NOTIFY_AND_MANUAL_RENEW',
+        true : 'NOTIFY_AND_AUTO_RENEW',
+    };
+
+    var createInsJson =
+    {
+    Region: undefined,
+    Action: 'RunInstances',
+    Version: "2017-03-12",
+    InstanceChargeType: undefined,
+    InstanceChargePrepaid: {
+        Period: undefined,
+        RenewFlag: undefined
+    },
+    Placement: {
+        Zone: undefined,
+        ProjectId: undefined,
+        HostIds : undefined
+    },
+    InstanceType: undefined,
+    ImageId: undefined,
+    SystemDisk: {
+        DiskType: undefined,
+        DiskId:undefined,
+        DiskSize: undefined
+    },
+    VirtualPrivateCloud: {
+        VpcId: undefined,
+        SubnetId: undefined,
+        AsVpcGateway:undefined,
+        PrivateIpAddresses:undefined
+    },
+    InternetAccessible: {
+        InternetChargeType: undefined,
+        InternetMaxBandwidthOut: undefined,
+        PublicIpAssigned: undefined
+    },
+    InstanceCount: undefined,
+    InstanceName: undefined,
+    LoginSettings: {
+        Password: undefined,
+        KeyIds:undefined,
+        KeepImageLogin: undefined,
+    },
+    EnhancedService: {
+        SecurityService: {
+            Enabled: undefined
+        },
+        MonitorService: {
+            Enabled: undefined
+        }
+    },
+    ClientToken: undefined
+}
+    try {
         console.log('Fetching orderItem info');
         var instanceIds = [];
         var order = ctx.order;
@@ -245,88 +334,47 @@ router.post('/cvm',async (ctx, next) => {
         //order.orderItem.forEach(function(item){ //await 只能直接写在async函数内，也就是说，不能写在forEach中。
             //Check orderItem's state must be Acknowledged or InProgess
             console.log('Validate orderItem state');
-            if(item.state != 'Acknowledged' && item.state != "InProgess") ctx.throw(400,'{"code":-7,"description":"Only Acknowledged or InProgess can be manually modified"}');
+            if(item.state != 'Acknowledged' && item.state != "InProgress") ctx.throw(400,{code:-7,description:'Only Acknowledged or InProgess can be manually modified'});
 
             //fetch product characteristicValue
-            var userId = item.product.relatedParty.filter(function(x){return x.role=="Customer"})[0].id;
-            var provider = item.product.productCharacteristic.filter(function(x){return x.name=="provider"})[0].value;
-            var productName = item.product.productCharacteristic.filter(function(x){return x.name=="productname"})[0].value;
+            //var userId = item.product.relatedParty.filter(function(x){return x.role=="Customer"})[0].id;
+            var userId = checkRelatedPartyMandatory(ctx,item.product.relatedParty,'Customer');
+            var provider = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'provider');
+            var productName = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'productname');
             //cvm parameters/////////////////////////////////////////////
-            var timeSpan = item.product.productCharacteristic.filter(function(x){return x.name=="购买时长"})[0].value; //10 Month
-			var timeSpanValue = parseInt(timeSpan.split(' ')[0]);
-            var timeUnit = 'm';
-			if( timeSpanValue > 12){  // Yearly
-				timeSpanValue = timeSpanValue/12;
-                timeUnit = 'y';
-            }
-            var goodsNum = 1;
-            var bandwidth = item.product.productCharacteristic.filter(function(x){return x.name=="保底防护峰值"})[0].value; //10 Gbps
-            var bandwidthValue = parseInt(bandwidth.split(' ')[0]);
-            var elastic = item.product.productCharacteristic.filter(function(x){return x.name=="弹性防护峰值"})[0].value;//10 Gbps
-            var elasticValue = parseInt(elastic.split(' ')[0]);
-            var region = item.product.productCharacteristic.filter(function(x){return x.name=="地域"})[0].value;
-            var regionValue = config.qcloud.region.filter(function(x){return x.name==region})[0].value;
-            console.log("oderId" + orderId);
-            console.log("oderItemId" + item.id);
-            console.log("userId" + userId);
-            console.log("provider: " + provider);
-			console.log("productName: " + productName);
-            console.log("timeSpan:" + timeSpanValue);
-            console.log("timeUnit:" + timeUnit);
-            console.log("goodsNum:" + goodsNum);
-            console.log("bandwidthValue:" + bandwidthValue);
-            console.log("elasticValue:" + elasticValue);
-            console.log("regionValue:" + regionValue);
+            createInsJson.ImageId = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'操作系统');
+            createInsJson.InstanceCount = 1;
+            createInsJson.InstanceType = checkCharacteristicOptional(item.product.productCharacteristic,'机型');
+            createInsJson.Placement.Zone = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'地域');
+            //createInsJson.Placement.ProjectId = undefined;
+            createInsJson.Region = 'ap-' + createInsJson.Placement.Zone.split('-')[1];
+            createInsJson.InternetAccessible.InternetMaxBandwidthOut = parseInt(checkCharacteristicOptional(item.product.productCharacteristic,'带宽'),10);
+            createInsJson.InstanceChargePrepaid.Period = parseInt(checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'购买时长'),10);
+            createInsJson.InstanceChargePrepaid.RenewFlag = RENEWFLAG[checkCharacteristicOptional(item.product.productCharacteristic,'自动续费')];
+            createInsJson.ClientToken = randomstring.generate(64);
+            console.log(JSON.stringify(createInsJson,4,4));
+
             ///////////////////////////////////////////////////////////////////////////////////////////////
             //Deliver item
             console.log('Delivering item');
-            var params_in = {
-				'region': regionValue,
-                'timeSpan': timeSpanValue,
-                'timeUnit': timeUnit,
-                'goodsNum': goodsNum,
-                'bandwidth':bandwidthValue,
-                'elastic':elasticValue
-			};
-*/
-                try{
-                    var params = assign({
-                        Region: 'bj',//regionValue,
-                        Version: '2017-03-12',
-                        Action: 'RunInstances'
-                    }, ctx.request.body);
 
-                console.log(JSON.stringify(params, 4, 4));
-                var startDelivery = new Date();
-                var qcloudbd = await
-                asyncQcloudReq(params, {serviceType: 'cvm'});
-                if (qcloudbd.Response.Error != undefined) {
+/*            var params = assign(createInsJson);
+            var startDelivery = new Date();
+            var qcloudbd = await asyncQcloudReq(JSON.parse(JSON.stringify(params)), {serviceType: 'cvm'});
+            var msQcloud = new Date() - startDelivery;
+            console.log(`Delivery - ${msQcloud}ms`);
+            if (qcloudbd.Response.Error != undefined) {
                     ctx.throw(400,JSON.stringify({code:-8,description:qcloudbd.Response.Error}));
-                }else{
-                    ctx.status = 200;
-                    ctx.body = qcloudbd.Response.InstanceIdSet;
-                }
-                console.log(qcloudbd);
-
-                var msQcloud = new Date() - startDelivery;
-                console.log(`Delivery - ${msQcloud}ms`);
-                return;
-                }catch (ex){
-                    console.log(ex);
-                    console.log(ex.message);
-                    ctx.status = parseInt(ex.status,10);
-                    ctx.body = ex.message;
-                    return;
-            }
-
+            }*/
 
             //write instance info into inventory database
-            var instanceId = 'bgpip-000000z1';
+            console.log("Write product info into database");
+            var instanceId = 'ins-000000z1';
             var dboptions = {
                        method: "POST",
                        headers: {'content-type' : 'application/x-www-form-urlencoded'},
                        url:     config.dbRest.baseUrl + '/inventory/instance',
-                       form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':instanceId,'region':regionValue}
+                       form:    {'orderId':orderId,'orderItemId':item.id,'userId':userId,'provider':provider,'productName':productName,'instanceId':instanceId,'region':createInsJson.Region}
                         }
 
             var startDb = new Date();
@@ -353,18 +401,18 @@ router.post('/cvm',async (ctx, next) => {
             console.log(itembody);
             var msPatch = new Date() - startPatch;
             console.log(`Patch Order - ${msPatch}ms`);
-        //}//for items
+        }//for items
 
         ctx.status = 200;
         ctx.body ='{"code":0,"instances":'+ JSON.stringify(instanceIds) + '}';
         console.log(ctx.body);
-/*    }catch (ex){
+        }catch (ex){
         //item state change to Held
-        console.log(ex);
-        console.log(ex.message);
-        ctx.status = parseInt(ex.status,10);
-        ctx.body = ex.message;
-    }*/
+            console.log(ex);
+            console.log(ex.message);
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+        }
 });
 
 module.exports = router

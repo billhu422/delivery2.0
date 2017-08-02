@@ -14,11 +14,13 @@ router.get('/v1/hybrid/instance',async(ctx, next)=>{
 
    try{
         //if(userId == undefined) ctx.throw(400,'{"code"=-4,"description"="Need userId."}');
-        var dbbody = await rp.get({
-            headers: {'content-type' : 'application/json'},
-            url:     config.dbRest.baseUrl + '/inventory/instance?userId=' + ctx.query.userId+ "&" + querystring.stringify(ctx.query.query),
-            });
-        console.log(dbbody);
+       //console.log(ctx.query);
+       var option = {
+            url:     config.dbRest.baseUrl + '/inventory/instance?'+ querystring.stringify(ctx.query),
+            }
+       //console.log(option);
+        var dbbody = await rp.get(option);
+        //console.log(dbbody);
         var instances=[]
         JSON.parse(dbbody).forEach(function(el){
             var item = {
@@ -33,7 +35,7 @@ router.get('/v1/hybrid/instance',async(ctx, next)=>{
             instances.push(item);
         });
         ctx.status = 200;
-        ctx.body ='{"code":0,"instances":'+ JSON.stringify(instances)   +  '}';
+        ctx.body ={code:0,instances:instances};
    }
    catch (ex){
        console.log(ex.message);

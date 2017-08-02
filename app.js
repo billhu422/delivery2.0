@@ -12,6 +12,9 @@ const index = require('./routes/index')
 const users = require('./routes/users')
 const inventory = require('./routes/inventory')
 
+//
+require('koa-validate')(app);
+app.use(require('koa-body')({multipart:true , formidable:{keepExtensions:true}}));
 
 // error handler
 onerror(app)
@@ -59,7 +62,7 @@ asyncOauthGet= async(url,accessToken)=>{
     return oauthGet;
 }
 
-/*app.use(async(ctx, next) => {
+app.use(async(ctx, next) => {
     try{
             console.log('Validating user authorization token' );
             var access_token = ctx.request.get('Authorization').split(" ")[1];
@@ -70,9 +73,9 @@ asyncOauthGet= async(url,accessToken)=>{
             var msOauth = new Date() - startOauth;
             console.log(`Validate AccessToken - ${msOauth}ms`)
 
-            console.log(user);
-            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, '{"code" : -3, "description" : "User\'s role is not seller(admin)"}');
-            console.log(111);
+            //console.log(user);
+            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, {code : -3, description : 'User\'s role is not seller(admin)'});
+
             await next();
         }
         catch (ex){
@@ -80,17 +83,17 @@ asyncOauthGet= async(url,accessToken)=>{
             ctx.status = parseInt(ex.status,10);
             switch (ctx.status) {
                 case 404:
-                    ctx.body = '{"code":-1, "description":"Access Token not found"}';
+                    ctx.body = {code:-1, description:'Access Token not found'};
                     break;
                 case 401:
-                    ctx.body = '{"code":-2, "description":"Invalid Access Token"}';
+                    ctx.body = {code:-2, description:'Invalid Access Token'};
                     break;
                 default: {
                     ctx.body = ex.message;
                 }
             }
         }
-});*/
+});
 
 // routes
 app.use(index.routes(), index.allowedMethods())
