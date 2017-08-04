@@ -20,12 +20,25 @@ config.dbRest = {
 };
 
 config.qcloud = {
-    SecretId: 'AKIDJUTGrGYTQAlGvRoBKJ8mEbmnMp7LnRDn',
-    SecretKey: 'hEammaiiXTGzXv9C9zdIrXO4Zs21xAD8',
+    //SecretId: 'AKIDJUTGrGYTQAlGvRoBKJ8mEbmnMp7LnRDn',
+    //SecretKey: 'hEammaiiXTGzXv9C9zdIrXO4Zs21xAD8',
+    SecretId:'AKID3eE5r54CnEXhllqpqh1CE5nRyMfsm4Rj',
+    SecretKey:'3xjLo5AFHJhuvuhInspXP80mNrFX3fZQ'
+
 };
 config.qcloud.region = [
   { "name" : "北京", "value": 8},
   { "name" : "上海", "value": 4},
   { "name" : "广州", "value": 1},
 ];
+
+config.aliyun = {
+    SecretId: 'LTAIzgYvg0hVfNMK',
+    SecretKey: '3ExrKEf611ODomcjdpWus8mX4JIsJ4',
+};
+
+config.aliyun.ecs = {
+    操作系统:'ImageId',
+
+}
 module.exports = config;

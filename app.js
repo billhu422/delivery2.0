@@ -11,11 +11,7 @@ const config = require('./config')
 const index = require('./routes/index')
 const users = require('./routes/users')
 const inventory = require('./routes/inventory')
-
-//
-require('koa-validate')(app);
-app.use(require('koa-body')({multipart:true , formidable:{keepExtensions:true}}));
-
+const aliyunOpt = require('./routes/aliyunOpt')
 // error handler
 onerror(app)
 
@@ -99,5 +95,6 @@ app.use(async(ctx, next) => {
 app.use(index.routes(), index.allowedMethods())
 app.use(users.routes(), users.allowedMethods())
 app.use(inventory.routes(),inventory.allowedMethods())
+//app.use(aliyunOpt.routes(),aliyunOpt.allowedMethods());
 
 module.exports = app

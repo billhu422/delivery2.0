@@ -272,6 +272,10 @@ router.post('/cvm',async (ctx, next) => {
         true : 'NOTIFY_AND_AUTO_RENEW',
     };
 
+    var CHARGETYPE = {
+        包年包月:'PREPAID'
+    }
+
     var createInsJson =
     {
     Region: undefined,
@@ -339,8 +343,8 @@ router.post('/cvm',async (ctx, next) => {
             //fetch product characteristicValue
             //var userId = item.product.relatedParty.filter(function(x){return x.role=="Customer"})[0].id;
             var userId = checkRelatedPartyMandatory(ctx,item.product.relatedParty,'Customer');
-            var provider = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'provider');
-            var productName = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'productname');
+            var provider = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'provider').toLowerCase();
+            var productName = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'productname').toLowerCase();
             //cvm parameters/////////////////////////////////////////////
             createInsJson.ImageId = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'操作系统');
             createInsJson.InstanceCount = 1;
@@ -348,28 +352,32 @@ router.post('/cvm',async (ctx, next) => {
             createInsJson.Placement.Zone = checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'地域');
             //createInsJson.Placement.ProjectId = undefined;
             createInsJson.Region = 'ap-' + createInsJson.Placement.Zone.split('-')[1];
-            createInsJson.InternetAccessible.InternetMaxBandwidthOut = parseInt(checkCharacteristicOptional(item.product.productCharacteristic,'带宽'),10);
-            createInsJson.InstanceChargePrepaid.Period = parseInt(checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'购买时长'),10);
+            createInsJson.InternetAccessible.InternetMaxBandwidthOut = parseInt(checkCharacteristicOptional(item.product.productCharacteristic,'带宽').split(' ')[0],10);
+            createInsJson.InstanceChargeType = CHARGETYPE[checkCharacteristicOptional(item.product.productCharacteristic,'付费方式')];
+            createInsJson.InstanceChargePrepaid.Period = parseInt(checkCharacteristicMandatory(ctx,item.product.productCharacteristic,'购买时长').split(' ')[0],10);
             createInsJson.InstanceChargePrepaid.RenewFlag = RENEWFLAG[checkCharacteristicOptional(item.product.productCharacteristic,'自动续费')];
             createInsJson.ClientToken = randomstring.generate(64);
             console.log(JSON.stringify(createInsJson,4,4));
+            console.log(provider + ':'+ productName);
 
             ///////////////////////////////////////////////////////////////////////////////////////////////
             //Deliver item
             console.log('Delivering item');
 
-/*            var params = assign(createInsJson);
+            var params = assign(createInsJson);
             var startDelivery = new Date();
             var qcloudbd = await asyncQcloudReq(JSON.parse(JSON.stringify(params)), {serviceType: 'cvm'});
             var msQcloud = new Date() - startDelivery;
             console.log(`Delivery - ${msQcloud}ms`);
             if (qcloudbd.Response.Error != undefined) {
                     ctx.throw(400,JSON.stringify({code:-8,description:qcloudbd.Response.Error}));
-            }*/
+            }
 
             //write instance info into inventory database
+
             console.log("Write product info into database");
-            var instanceId = 'ins-000000z1';
+            //var instanceId = 'ins-000000z1';
+            var instanceId = qcloudbd.Response.InstanceIdSet[0];
             var dboptions = {
                        method: "POST",
                        headers: {'content-type' : 'application/x-www-form-urlencoded'},
@@ -408,6 +416,10 @@ router.post('/cvm',async (ctx, next) => {
         console.log(ctx.body);
         }catch (ex){
         //item state change to Held
+            if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-15,description:"inventory DB:" + ex.errno}
+            }
             console.log(ex);
             console.log(ex.message);
             ctx.status = parseInt(ex.status,10);
