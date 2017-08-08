@@ -5,7 +5,16 @@ const assign = require('object-assign');
 const request = require('request')
 const  rp = require('request-promise');
 const randomstring = require("randomstring");
+const vreq = require('../lib/validateReq');
+const qs = require('querystring');
 router.prefix('/v1/hybrid/qcloud')
+var checkBodyRequired = function (ctx,field) {
+    if(ctx.request.body[field] == undefined) {
+        ctx.throw(400,{message:{code : -12 ,description:'required body field:'+ field}})
+    }
+
+    return ctx.request.body[field];
+}
 
 asyncRequest= async (opts)=>{
     let bd = await new Promise(function(resolve, reject) {
@@ -73,11 +82,222 @@ asyncQcloudReq= async (params,opts,extra)=>{
 );*/
 
 
+router.post('/project',async (ctx, next) => {
+    try{
+        var userId = checkBodyRequired(ctx,'userId');
+        var name = checkBodyRequired(ctx,'name');
+        var provider = 'qcloud';
+        var productName = 'project';
+        //userId,provider=qcloud,productName=project
+        //body:projectName,userId
+        //1.create project
+        var params = {
+            Action: 'AddProject',
+            Version:'2017-03-12',
+            projectName:name
+        }
+        var startDelivery = new Date();
+        var qcloudbd = await asyncQcloudReq(params, {serviceType: 'account'});
+        var msQcloud = new Date() - startDelivery;
+        console.log(`Delivery - ${msQcloud}ms`);
+        console.log(qcloudbd);
+
+        if (qcloudbd.Response && qcloudbd.Response.Error != undefined) {
+            ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
+        }
+        console.log(3);
+    }catch (ex){
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+            return;
+    }
+
+    //2.write into db
+    try {
+        var projectId = qcloudbd.projectId;
+        var dboptions = {
+            method: "POST",
+            headers: {'content-type' : 'application/x-www-form-urlencoded'},
+            url:     config.dbRest.baseUrl + '/inventory/instance',
+            form:    {'orderId':0,'orderItemId':0,'userId':userId,'provider':provider,'productName':productName,'instanceId':projectId,'region':''}
+        }
+
+        var startDb = new Date();
+        var dbbody = await asyncRequest(dboptions);
+        console.log(JSON.stringify(dbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+
+        ctx.status = 200;
+        ctx.body ={code:0,projectId: qcloudbd.projectId};
+        console.log(ctx.body);
+    }catch(ex){
+        if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
+        }
+        console.log(ex);
+        console.log(ex.message);
+        ctx.status = parseInt(ex.status,10);
+        ctx.body = ex.message;
+
+
+    }
+});
+
+router.post('/keypair',async (ctx, next) => {
+    try{
+        var userId = checkBodyRequired(ctx,'userId');
+        var region = checkBodyRequired(ctx,'region');
+        var keyName = checkBodyRequired(ctx,'keyName');
+        var projectId = checkBodyRequired(ctx,'projectId');
+        var provider = 'qcloud';
+        var productName = 'keypair';
+        //1.create keypair
+        var params = {
+            Action: 'CreateKeyPair',
+            Version:'2017-03-12',
+            Region:region,
+            KeyName:keyName,
+            ProjectId:projectId
+        }
+        var startDelivery = new Date();
+        var qcloudbd = await asyncQcloudReq(params, {serviceType: 'cvm'});
+        console.log(qcloudbd);
+        var msQcloud = new Date() - startDelivery;
+        console.log(`Delivery - ${msQcloud}ms`);
+        if (qcloudbd.Response.Error != undefined) {
+            ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
+        }
+    }catch (ex){
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+            return;
+    }
+
+    //2.write into db
+    try {
+        var keyPairId = qcloudbd.Response.KeyPair.KeyId;
+        var dboptions = {
+            method: "POST",
+            headers: {'content-type' : 'application/x-www-form-urlencoded'},
+            url:     config.dbRest.baseUrl + '/inventory/instance',
+            form:    {'orderId':0,'orderItemId':0,'userId':userId,'provider':provider,'productName':productName,'instanceId':keyPairId,'region':region,'note':projectId,'del':0}
+        }
+
+        var startDb = new Date();
+        var dbbody = await asyncRequest(dboptions);
+        console.log(JSON.stringify(dbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+
+        ctx.status = 200;
+        ctx.body ={code:0,keyPair: qcloudbd.Response.KeyPair};
+        console.log(ctx.body);
+    }catch(ex){
+        if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
+        }
+        console.log(ex);
+        console.log(ex.message);
+        ctx.status = parseInt(ex.status,10);
+        ctx.body = ex.message;
+    }
+});
+
+
+
+router.delete('/keypair/:id',async (ctx, next) => {
+    try{
+        var keyPairId = vreq.checkParamRequired(ctx,'id');
+        var region = vreq.checkQueryRequired(ctx,'regionId');
+        var userId = vreq.checkQueryRequired(ctx,'userId');
+        var provider = 'qcloud';
+        var productName = 'keypair';
+        console.log(3);
+        console.log(keyPairId,region);
+        //1.create keypair
+        var params = {
+            Action: 'DeleteKeyPairs',
+            Version:'2017-03-12',
+            Region: region,
+            KeyIds:[keyPairId],
+        }
+        console.log(params);
+        var startDelivery = new Date();
+        var qcloudbd = await asyncQcloudReq(params, {serviceType: 'cvm'});
+        console.log(qcloudbd);
+        var msQcloud = new Date() - startDelivery;
+        console.log(`Delivery - ${msQcloud}ms`);
+        if (qcloudbd.Response.Error != undefined) {
+            ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
+        }
+    }catch (ex){
+            console.log(ex);
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+            if(ex.message.description.Code != 'InvalidKeyPairId.NotFound') return;
+    }
+    try {
+        //2.get keypair's id
+        var form = {
+                orderId:0,
+                orderItemId:0,
+                userId:userId,
+                provider:provider,
+                productName:productName,
+                instanceId:keyPairId,
+                region:region,
+                del:0
+        }
+
+        var getdboptions = {
+                method: "GET",
+                url:     config.dbRest.baseUrl + '/inventory/instance?'+ qs.stringify(form),
+        }
+        console.log(getdboptions);
+        var startDb = new Date();
+        var getdbbody = await asyncRequest(getdboptions);
+        console.log(JSON.stringify(getdbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+        if(JSON.parse(getdbbody).length == 0) {ctx.status = 204;return;}
+
+    //3.put keyair
+        var dboptions = {
+            method: "PUT",
+            headers: {'content-type' : 'application/x-www-form-urlencoded'},
+            url:     config.dbRest.baseUrl + '/inventory/instance/' + JSON.parse(getdbbody)[0].id,
+            form:    {del:1}
+        }
+        console.log(dboptions);
+        var startDb = new Date();
+        var dbbody = await asyncRequest(dboptions);
+        console.log(JSON.stringify(dbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+
+        ctx.status = 204;
+    }catch(ex){
+        if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
+        }
+        console.log(ex);
+        console.log(ex.message);
+        ctx.status = parseInt(ex.status,10);
+        ctx.body = ex.message;
+    }
+});
+
+
+
 router.use(async (ctx, next) => {
      try {
         console.log('Fetching order info');
         var orderId = ctx.request.body.orderId;
-        if(orderId  == undefined) ctx.throw(400,{code:-4,description:'Need orderId.'});
+        if(orderId  == undefined) ctx.throw(400,{message:{code:-4,description:'Need orderId.'}});
 
         var adminAccessToken = ctx.get('Authorization');
          var options = {
@@ -107,7 +327,6 @@ router.use(async (ctx, next) => {
 
         ctx.adminAccessToken = adminAccessToken;
         ctx.order = order;
-        await next();
     }
     catch (ex){
         console.log(ex);
@@ -116,6 +335,7 @@ router.use(async (ctx, next) => {
         ctx.body = ex.message;
         return;
     }
+    await next();
 });
 
 router.post('/bgpip',async (ctx, next) => {
@@ -338,7 +558,7 @@ router.post('/cvm',async (ctx, next) => {
         //order.orderItem.forEach(function(item){ //await 只能直接写在async函数内，也就是说，不能写在forEach中。
             //Check orderItem's state must be Acknowledged or InProgess
             console.log('Validate orderItem state');
-            if(item.state != 'Acknowledged' && item.state != "InProgress") ctx.throw(400,{code:-7,description:'Only Acknowledged or InProgess can be manually modified'});
+            if(item.state != 'Acknowledged' && item.state != "InProgress") ctx.throw(400,{message:{code:-7,description:'Only Acknowledged or InProgess can be manually modified'}});
 
             //fetch product characteristicValue
             //var userId = item.product.relatedParty.filter(function(x){return x.role=="Customer"})[0].id;
@@ -370,7 +590,7 @@ router.post('/cvm',async (ctx, next) => {
             var msQcloud = new Date() - startDelivery;
             console.log(`Delivery - ${msQcloud}ms`);
             if (qcloudbd.Response.Error != undefined) {
-                    ctx.throw(400,JSON.stringify({code:-8,description:qcloudbd.Response.Error}));
+                    ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
             }
 
             //write instance info into inventory database
@@ -418,7 +638,7 @@ router.post('/cvm',async (ctx, next) => {
         //item state change to Held
             if(ex.code == 'ECONNREFUSED')  {
                 ex.status = 500;
-                ex.message = {code:-15,description:"inventory DB:" + ex.errno}
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
             }
             console.log(ex);
             console.log(ex.message);
@@ -426,5 +646,9 @@ router.post('/cvm',async (ctx, next) => {
             ctx.body = ex.message;
         }
 });
+
+
+
+
 
 module.exports = router

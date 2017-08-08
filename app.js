@@ -71,8 +71,6 @@ app.use(async(ctx, next) => {
 
             //console.log(user);
             if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, {code : -3, description : 'User\'s role is not seller(admin)'});
-
-            await next();
         }
         catch (ex){
             console.log(ex);
@@ -89,6 +87,8 @@ app.use(async(ctx, next) => {
                 }
             }
         }
+
+        await next();
 });
 
 // routes
