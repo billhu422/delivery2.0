@@ -11,7 +11,7 @@ const config = require('./config')
 const index = require('./routes/index')
 const users = require('./routes/users')
 const inventory = require('./routes/inventory')
-const aliyunOpt = require('./routes/aliyunOpt')
+//const aliyunOpt = require('./routes/aliyunOpt')
 // error handler
 onerror(app)
 
