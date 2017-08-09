@@ -191,7 +191,7 @@ router.post('/keypair',async (ctx, next) => {
         var msDB = new Date() - startDb;
         console.log(`Write ins info - ${msDB}ms`);
 
-        ctx.status = 200;
+        ctx.status = 201;
         ctx.body ={code:0,keyPair: qcloudbd.Response.KeyPair};
         console.log(ctx.body);
     }catch(ex){
@@ -291,6 +291,69 @@ router.delete('/keypair/:id',async (ctx, next) => {
     }
 });
 
+router.post('/keypair/import',async (ctx, next) => {
+        try{
+        var userId = vreq.checkBodyRequired(ctx,'userId');
+        var region = vreq.checkBodyRequired(ctx,'region');
+        var keyName = vreq.checkBodyRequired(ctx,'keyName');
+        var projectId = vreq.checkBodyRequired(ctx,'projectId');
+        var pubkey = vreq.checkBodyRequired(ctx,'publicKey');
+        var provider = 'qcloud';
+        var productName = 'keypair';
+        //1.create keypair
+        var params = {
+            Action: 'ImportKeyPair',
+            Version:'2017-03-12',
+            Region:region,
+            KeyName:keyName,
+            ProjectId:projectId,
+            PublicKey:pubkey
+        }
+        console.log(params);
+        var startDelivery = new Date();
+        var qcloudbd = await asyncQcloudReq(params, {serviceType: 'cvm'});
+        console.log(qcloudbd);
+        var msQcloud = new Date() - startDelivery;
+        console.log(`Delivery - ${msQcloud}ms`);
+        if (qcloudbd.Response.Error != undefined) {
+            ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
+        }
+    }catch (ex){
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+            return;
+    }
+
+    //2.write into db
+    try {
+        var keyPairId = qcloudbd.Response.KeyId;
+        var dboptions = {
+            method: "POST",
+            headers: {'content-type' : 'application/x-www-form-urlencoded'},
+            url:     config.dbRest.baseUrl + '/inventory/instance',
+            form:    {'orderId':0,'orderItemId':0,'userId':userId,'provider':provider,'productName':productName,'instanceId':keyPairId,'region':region,'note':projectId,'del':0}
+        }
+
+        var startDb = new Date();
+        var dbbody = await asyncRequest(dboptions);
+        console.log(JSON.stringify(dbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+
+        ctx.status = 201;
+        ctx.body ={code:0,keyId: keyPairId};
+        console.log(ctx.body);
+    }catch(ex){
+        if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
+        }
+        console.log(ex);
+        console.log(ex.message);
+        ctx.status = parseInt(ex.status,10);
+        ctx.body = ex.message;
+    }
+});
 
 
 router.use(async (ctx, next) => {
