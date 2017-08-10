@@ -202,9 +202,4 @@ router.delete('/securityGroup/:id',async (ctx, next) => {
     }
 });
 
-
-
-
-
-
 module.exports = router

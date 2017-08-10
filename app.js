@@ -86,6 +86,7 @@ app.use(async(ctx, next) => {
                     ctx.body = ex.message;
                 }
             }
+            return;
         }
 
         await next();

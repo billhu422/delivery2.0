@@ -105,7 +105,6 @@ router.post('/project',async (ctx, next) => {
         if (qcloudbd.Response && qcloudbd.Response.Error != undefined) {
             ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
         }
-        console.log(3);
     }catch (ex){
             ctx.status = parseInt(ex.status,10);
             ctx.body = ex.message;
@@ -215,7 +214,6 @@ router.delete('/keypair/:id',async (ctx, next) => {
         var userId = vreq.checkQueryRequired(ctx,'userId');
         var provider = 'qcloud';
         var productName = 'keypair';
-        console.log(3);
         console.log(keyPairId,region);
         //1.create keypair
         var params = {
@@ -356,6 +354,149 @@ router.post('/keypair/import',async (ctx, next) => {
 });
 
 
+router.post('/securityGroup',async (ctx, next) => {
+    try{
+        console.log('Deliver securityGroup');
+        var userId = vreq.checkBodyRequired(ctx,'userId');
+        var region = vreq.checkBodyRequired(ctx,'region');
+        var projectId = vreq.checkBodyRequired(ctx,'projectId');
+        var sgName = vreq.checkBodyRequired(ctx,'sgName');
+        var sgRemark = ctx.request.body.sgRemark;
+        var provider = 'qcloud';
+        var productName = 'securitygroup';
+
+        var params = {
+            Action: 'CreateSecurityGroup',
+            Version:'2017-03-12',
+            Region:region,
+            ProjectId:projectId,
+            sgName:sgName,
+            sgRemark:sgRemark
+        }
+        var startDelivery = new Date();
+        var qcloudbd = await asyncQcloudReq(JSON.parse(JSON.stringify(params)), {serviceType: 'dfw'});
+        var msQcloud = new Date() - startDelivery;
+        if (qcloudbd.codeDesc != 'Success') {
+            ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
+        }
+    }catch (ex){
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+            return;
+    }
+
+    //2.write into db
+    try {
+        var sgId = qcloudbd.data.sgId;
+        var dboptions = {
+            method: "POST",
+            headers: {'content-type' : 'application/x-www-form-urlencoded'},
+            url:     config.dbRest.baseUrl + '/inventory/instance',
+            form:    {'orderId':0,'orderItemId':0,'userId':userId,'provider':provider,'productName':productName,'instanceId':sgId,'region':region,'note':projectId,'del':0}
+        }
+
+        var startDb = new Date();
+        var dbbody = await asyncRequest(dboptions);
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+
+        ctx.status = 201;
+        ctx.body ={code:0,sgId: sgId};
+        console.log(ctx.body);
+    }catch(ex){
+        if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
+        }
+        console.log(ex);
+        ctx.status = parseInt(ex.status,10);
+        ctx.body = ex.message;
+    }
+});
+
+router.delete('/securityGroup/:id',async (ctx, next) => {
+    try{
+        console.log('Delete securityGroup');
+        var userId = vreq.checkQueryRequired(ctx,'userId');
+        var region = vreq.checkQueryRequired(ctx,'regionId');
+        var sgId = vreq.checkParamRequired(ctx,'id');
+        var provider = 'qcloud';
+        var productName = 'securitygroup';
+
+        var params = {
+            Action: 'DeleteSecurityGroup',
+            Version:'2017-03-12',
+            Region:region,
+            sgId:sgId
+        }
+        console.log(params);
+        var startDelivery = new Date();
+        var qcloudbd = await asyncQcloudReq(JSON.parse(JSON.stringify(params)), {serviceType: 'dfw'});
+        var msQcloud = new Date() - startDelivery;
+        if (qcloudbd.codeDesc != 'Success') {
+            ctx.throw(400,{message:{code:-8,description:qcloudbd}});
+        }
+    }catch (ex){
+            console.log(ex);
+            ctx.status = parseInt(ex.status,10);
+            ctx.body = ex.message;
+            return;
+    }
+
+    //2.del
+   try {
+        //2.get keypair's id
+        var form = {
+                orderId:0,
+                orderItemId:0,
+                userId:userId,
+                provider:provider,
+                productName:productName,
+                instanceId:sgId,
+                region:region,
+                del:0
+        }
+
+        var getdboptions = {
+                method: "GET",
+                url:     config.dbRest.baseUrl + '/inventory/instance?'+ qs.stringify(form),
+        }
+        console.log(getdboptions);
+        var startDb = new Date();
+        var getdbbody = await asyncRequest(getdboptions);
+        console.log(JSON.stringify(getdbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+        if(JSON.parse(getdbbody).length == 0) {ctx.status = 204;return;}
+
+    //3.put keyair
+        var dboptions = {
+            method: "PUT",
+            headers: {'content-type' : 'application/x-www-form-urlencoded'},
+            url:     config.dbRest.baseUrl + '/inventory/instance/' + JSON.parse(getdbbody)[0].id,
+            form:    {del:1}
+        }
+        console.log(dboptions);
+        var startDb = new Date();
+        var dbbody = await asyncRequest(dboptions);
+        console.log(JSON.stringify(dbbody,4,4));
+        var msDB = new Date() - startDb;
+        console.log(`Write ins info - ${msDB}ms`);
+
+        ctx.status = 204;
+    }catch(ex){
+        if(ex.code == 'ECONNREFUSED')  {
+                ex.status = 500;
+                ex.message = {code:-11,description:"inventory DB:" + ex.errno}
+        }
+        console.log(ex);
+        console.log(ex.message);
+        ctx.status = parseInt(ex.status,10);
+        ctx.body = ex.message;
+    }
+});
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 router.use(async (ctx, next) => {
      try {
         console.log('Fetching order info');
