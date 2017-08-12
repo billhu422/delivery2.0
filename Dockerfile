@@ -7,13 +7,14 @@ FROM node:latest
 #ENV LANGUAGE zh_CN:zh
 #ENV LC_ALL zh_CN.UTF-8
 
-RUN apt-get update && apt-get -y install curl && apt-get -y install git 
+RUN apt-get update && apt-get -y install curl && apt-get -y install git  && apt-get -y install vim
 #&& curl -sL https://deb.nodesource.com/setup_7.x |  bash - &&  apt-get install -y nodejs
 
 
 WORKDIR /opt
 RUN git clone https://github.com/billhu422/delivery2.0.git && \
         cd delivery2.0 && \
+	git checkout -b hybrid tags/v2.4 && \
         npm install
 
 RUN git clone https://github.com/billhu422/qcloudapi-sdk.git && \
@@ -22,7 +23,7 @@ RUN git clone https://github.com/billhu422/qcloudapi-sdk.git && \
 
 RUN git clone https://github.com/billhu422/epilogue.git && \
         cd epilogue && \
-        git checkout hybrid && \
+        git checkout -b hybrid tags/v2.1&& \
         npm install
 
 
