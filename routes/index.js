@@ -8,6 +8,7 @@ const randomstring = require("randomstring");
 const vreq = require('../lib/validateReq');
 const qs = require('querystring');
 router.prefix('/v1/hybrid/qcloud')
+
 var checkBodyRequired = function (ctx,field) {
     if(ctx.request.body[field] == undefined) {
         ctx.throw(400,{message:{code : -12 ,description:'required body field:'+ field}})
@@ -139,8 +140,6 @@ router.post('/project',async (ctx, next) => {
         console.log(ex.message);
         ctx.status = parseInt(ex.status,10);
         ctx.body = ex.message;
-
-
     }
 });
 
@@ -643,7 +642,7 @@ router.post('/bgpip',async (ctx, next) => {
             console.log(`Patch Order - ${msPatch}ms`);
         }
 
-        ctx.status = 200;
+        ctx.status = 201;
         ctx.body ={code:0,instances:instanceIds};
         console.log(ctx.body);
     }catch (ex){
@@ -788,20 +787,20 @@ router.post('/cvm',async (ctx, next) => {
             //Deliver item
             console.log('Delivering item');
 
-            var params = assign(createInsJson);
+/*            var params = assign(createInsJson);
             var startDelivery = new Date();
             var qcloudbd = await asyncQcloudReq(JSON.parse(JSON.stringify(params)), {serviceType: 'cvm'});
             var msQcloud = new Date() - startDelivery;
             console.log(`Delivery - ${msQcloud}ms`);
             if (qcloudbd.Response.Error != undefined) {
                     ctx.throw(400,{message:{code:-8,description:qcloudbd.Response.Error}});
-            }
+            }*/
 
             //write instance info into inventory database
 
             console.log("Write product info into database");
-            //var instanceId = 'ins-000000z1';
-            var instanceId = qcloudbd.Response.InstanceIdSet[0];
+            var instanceId = 'ins-000000z1';
+            //var instanceId = qcloudbd.Response.InstanceIdSet[0];
             var dboptions = {
                        method: "POST",
                        headers: {'content-type' : 'application/x-www-form-urlencoded'},
@@ -835,7 +834,7 @@ router.post('/cvm',async (ctx, next) => {
             console.log(`Patch Order - ${msPatch}ms`);
         }//for items
 
-        ctx.status = 200;
+        ctx.status = 201;
         ctx.body ='{"code":0,"instances":'+ JSON.stringify(instanceIds) + '}';
         console.log(ctx.body);
         }catch (ex){
@@ -850,9 +849,5 @@ router.post('/cvm',async (ctx, next) => {
             ctx.body = ex.message;
         }
 });
-
-
-
-
 
 module.exports = router
