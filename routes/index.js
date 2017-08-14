@@ -520,13 +520,13 @@ router.use(async (ctx, next) => {
         console.log(`fetchOrder - ${msOder}ms`)
 
         var order = JSON.parse(bd)[0];
-        if(order == undefined) ctx.throw(400,{code:-5,description:'Not found order.'});
+        if(order == undefined) ctx.throw(400,{message:{code:-5,description:'Not found order.'}});
 
 //        console.log(JSON.stringify(order,4,4));
         //Validating Paid status
         console.log('Validating Paid status');
         var textObj = order.note.filter(function(x){return x.text=="Paid"})[0];
-        if( textObj ==undefined ) ctx.throw(400, {code:-6,description:'The order is not paied, cannot  delivery an instance by the order'});
+        if( textObj ==undefined ) ctx.throw(400, {message:{code:-6,description:'The order is not paied, cannot  delivery an instance by the order'}});
 
         ctx.adminAccessToken = adminAccessToken;
         ctx.order = order;
@@ -555,7 +555,7 @@ router.post('/bgpip',async (ctx, next) => {
         //order.orderItem.forEach(function(item){ //await 只能直接写在async函数内，也就是说，不能写在forEach中。
             //Check orderItem's state must be Acknowledged or InProgess
             console.log('Validate orderItem state');
-            if(item.state != 'Acknowledged' && item.state != "InProgress") ctx.throw(400,{code:-7,description:'Only Acknowledged or InProgess can be manually modified'});
+            if(item.state != 'Acknowledged' && item.state != "InProgress") ctx.throw(400,{message:{code:-7,description:'Only Acknowledged or InProgess can be manually modified'}});
 
             //fetch product characteristicValue
             var userId = item.product.relatedParty.filter(function(x){return x.role=="Customer"})[0].id;

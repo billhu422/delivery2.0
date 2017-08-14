@@ -70,7 +70,7 @@ app.use(async(ctx, next) => {
             console.log(`Validate AccessToken - ${msOauth}ms`)
 
             //console.log(user);
-            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, {code : -3, description : 'User\'s role is not seller(admin)'});
+            if(JSON.parse(user).email != config.oauth.username) ctx.throw(400, {message:{code : -3, description : 'User\'s role is not seller(admin)'}});
         }
         catch (ex){
             console.log(ex);
