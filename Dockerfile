@@ -7,7 +7,7 @@ FROM node:latest
 #ENV LANGUAGE zh_CN:zh
 #ENV LC_ALL zh_CN.UTF-8
 
-RUN apt-get update && apt-get -y install curl && apt-get -y install git  && apt-get -y install vim
+RUN apt-get update && apt-get -y install curl && apt-get -y install git  && apt-get -y install vim && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 #&& curl -sL https://deb.nodesource.com/setup_7.x |  bash - &&  apt-get install -y nodejs
 
 
